@@ -60,12 +60,33 @@ cpd_moves = TabularCPD(
                  "Starts": ['yes', 'no'] }
 )
 
-
 # Associating the parameters with the model structure
 car_model.add_cpds( cpd_starts, cpd_ignition, cpd_gas, cpd_radio, cpd_battery, cpd_moves)
 
 car_infer = VariableElimination(car_model)
 
-print(car_infer.query(variables=["Moves"],evidence={"Radio":"turns on", "Starts":"yes"}))
+'''print(car_infer.query(variables=["Moves"],evidence={"Radio":"turns on", "Starts":"yes"}))'''
 
+# Probability that the battery is not working given that the car will not move
+query_1 = car_infer.query(variables=["Battery"], evidence={"Moves": "no"})
 
+# Probability that the car will not start given that the radio is not working
+query_2 = car_infer.query(variables=["Starts"], evidence={"Radio": "Doesn't turn on"})
+
+# Effect on probability of radio working if the battery works and car has gas
+query_3 = car_infer.query(variables=["Radio"], evidence={"Battery": "Works", "Gas": "Full"})
+
+# Effect on probability of ignition failing if car doesn't move and has no gas
+query_4 = car_infer.query(variables=["Ignition"], evidence={"Moves": "no", "Gas": "Empty"})
+
+# Probability that the car starts if the radio works and it has gas
+query_5 = car_infer.query(variables=["Starts"], evidence={"Radio": "turns on", "Gas": "Full"})
+
+# Main: Execute Queries
+if __name__ == "__main__":
+    print("Car model queries:\n")
+    print("P(Battery doesn't work | Moves=no):\n", query_1, "\n")
+    print("P(Starts=no | Radio=Doesn't turn on):\n", query_2, "\n")
+    print("P(Radio | Battery=Works, Gas=Full):\n", query_3, "\n")
+    print("P(Ignition | Moves=no, Gas=Empty):\n", query_4, "\n")
+    print("P(Starts | Radio=turns on, Gas=Full):\n", query_5, "\n")
