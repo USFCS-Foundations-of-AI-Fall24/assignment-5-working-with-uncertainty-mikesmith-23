@@ -7,7 +7,8 @@ car_model = BayesianNetwork(
         ("Battery", "Ignition"),
         ("Ignition","Starts"),
         ("Gas","Starts"),
-        ("Starts","Moves")
+        ("Starts","Moves"),
+        ("KeyPresent", "Starts")
     ]
 )
 
@@ -42,13 +43,22 @@ cpd_ignition = TabularCPD(
                  "Battery": ['Works',"Doesn't work"]}
 )
 
+cpd_key_present = TabularCPD(
+    variable="KeyPresent", 
+    variable_card=2, values=[[0.7], [0.3]],
+    state_names={"KeyPresent": ["yes", "no"]}
+)
+
 cpd_starts = TabularCPD(
     variable="Starts",
     variable_card=2,
-    values=[[0.95, 0.05, 0.05, 0.001], [0.05, 0.95, 0.95, 0.9999]],
-    evidence=["Ignition", "Gas"],
-    evidence_card=[2, 2],
-    state_names={"Starts":['yes','no'], "Ignition":["Works", "Doesn't work"], "Gas":['Full',"Empty"]},
+    values=[
+        [0.99, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        [0.01, 0.99, 0.99, 0.99, 0.99, 0.99, 0.99, 0.99]
+    ],
+    evidence=["Ignition", "Gas", "KeyPresent"],
+    evidence_card=[2, 2, 2],
+    state_names={"Starts":['yes','no'], "Ignition":["Works", "Doesn't work"], "Gas":['Full',"Empty"], "KeyPresent": ["yes", "no"]}
 )
 
 cpd_moves = TabularCPD(
@@ -61,7 +71,7 @@ cpd_moves = TabularCPD(
 )
 
 # Associating the parameters with the model structure
-car_model.add_cpds( cpd_starts, cpd_ignition, cpd_gas, cpd_radio, cpd_battery, cpd_moves)
+car_model.add_cpds( cpd_starts, cpd_ignition, cpd_gas, cpd_radio, cpd_battery, cpd_moves, cpd_key_present)
 
 car_infer = VariableElimination(car_model)
 
@@ -82,6 +92,9 @@ query_4 = car_infer.query(variables=["Ignition"], evidence={"Moves": "no", "Gas"
 # Probability that the car starts if the radio works and it has gas
 query_5 = car_infer.query(variables=["Starts"], evidence={"Radio": "turns on", "Gas": "Full"})
 
+# Probability that the key is not present given that the car does not move
+query_6 = car_infer.query(variables=["KeyPresent"], evidence={"Moves": "no"})
+
 # Main: Execute Queries
 if __name__ == "__main__":
     print("Car model queries:\n")
@@ -90,3 +103,4 @@ if __name__ == "__main__":
     print("P(Radio | Battery=Works, Gas=Full):\n", query_3, "\n")
     print("P(Ignition | Moves=no, Gas=Empty):\n", query_4, "\n")
     print("P(Starts | Radio=turns on, Gas=Full):\n", query_5, "\n")
+    print("P(KeyPresent=no | Moves=no):\n", query_6, "\n")
