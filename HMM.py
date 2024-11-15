@@ -91,8 +91,50 @@ class HMM:
 
         return Sequence(states, observations)
 
-    def forward(self, sequence):
-        pass
+    def initialize_probabilities(self,
+                                 observations,
+                                 init_matrix,
+                                 init_backtrack=None):
+        """Helper for initializing probabilities in both forward and Viterbi."""
+        hidden_states = [
+            state for state in self.transitions.keys() if state != "#"
+        ]
+        for state in hidden_states:
+            if "#" in self.transitions and state in self.transitions["#"]:
+                init_prob = self.transitions["#"][state]
+                emit_prob = self.emissions[state].get(observations[0], 0)
+                init_matrix[state][0] = init_prob * emit_prob
+                if init_backtrack is not None:
+                    init_backtrack[state][0] = None
+        return hidden_states
+
+    def forward(self, observations):
+        num_obs = len(observations)
+        forward_matrix = {
+            state: [0] * num_obs
+            for state in self.transitions if state != "#"
+        }
+        hidden_states = self.initialize_probabilities(observations,
+                                                      forward_matrix)
+
+        for obs_index in range(1, num_obs):
+            for current_state in hidden_states:
+                total_prob = sum(
+                    forward_matrix[prev_state][obs_index - 1] *
+                    self.transitions[prev_state].get(current_state, 0)
+                    for prev_state in hidden_states)
+                forward_matrix[current_state][
+                    obs_index] = total_prob * self.emissions[
+                        current_state].get(observations[obs_index], 0)
+
+        final_probs = {
+            state: forward_matrix[state][num_obs - 1]
+            for state in hidden_states
+        }
+        most_probable_final_state = max(final_probs, key=final_probs.get)
+        return most_probable_final_state, final_probs[
+            most_probable_final_state]
+
 
     ## you do this: Implement the Viterbi algorithm. Given a Sequence with a list of emissions,
     ## determine the most likely sequence of states.
@@ -112,6 +154,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("basename", type=str)
     parser.add_argument("--generate", type=int)
+    parser.add_argument("--forward", type=str)
 
     args = parser.parse_args()
 
@@ -123,3 +166,19 @@ if __name__ == "__main__":
     if args.generate:
         sequence = hmm.generate(args.generate)
         print(sequence)
+
+    # Test the forward algorithm
+    if args.forward:
+        with open(args.forward, 'r') as f:
+            observations = f.read().strip().split()
+        most_probable_final_state, prob = hmm.forward(observations)
+        print("\nForward Algorithm Results:")
+        print("Most Probable Final State:", most_probable_final_state)
+        print("Probability of Ending in This State:", prob)
+
+        if args.basename == "lander":
+            safe_states = ["2,5", "3,4", "4,3", "4,4", "5,5"]
+            if most_probable_final_state in safe_states:
+                print("Safe to land:", most_probable_final_state)
+            else:
+                print("Not safe to land:", most_probable_final_state)
